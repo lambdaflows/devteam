@@ -1,0 +1,26 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Freely
+Comment=Lightning-fast, privacy-first AI assistant for meetings and conversations
+Exec=freely
+Icon=freely
+Terminal=false
+Categories=Utility;AudioVideo;Audio;Development;Office;
+Keywords=ai;assistant;voice;speech;microphone;meeting;interview;stealth;privacy;
+StartupNotify=true
+StartupWMClass=freely
+MimeType=audio/wav;audio/mp3;audio/ogg;
+
+# Permissions for microphone access
+X-GNOME-UsesNotifications=true
+X-KDE-SubstituteUID=false
+X-GNOME-SingleWindow=false
+
+# Flatpak permissions (if packaged as Flatpak)
+X-Flatpak-Permission=device=dri
+X-Flatpak-Permission=device=all
+X-Flatpak-Permission=socket=pulseaudio
+X-Flatpak-Permission=socket=fallback-x11
+X-Flatpak-Permission=socket=wayland
+X-Flatpak-Permission=env=PULSE_SERVER=unix:/run/user/1000/pulse/native
