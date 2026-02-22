@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+use tracing::warn;
 
 // ============================================================================
 // Process registry — tracks live agent child PIDs by session ID
@@ -529,7 +530,12 @@ async fn run_cli_process(
     // Register PID so the frontend can cancel via kill_agent_process
     if let Some(pid) = child.id() {
         if let Ok(mut map) = registry.0.lock() {
-            map.insert(session_id.to_string(), pid);
+            if let Some(old_pid) = map.insert(session_id.to_string(), pid) {
+                warn!(
+                    "Session {} already had PID {} registered; replaced with PID {}",
+                    session_id, old_pid, pid
+                );
+            }
         }
     }
 
