@@ -3,5 +3,7 @@ export interface TYPE_PROVIDER {
   streaming?: boolean;
   responseContentPath?: string;
   isCustom?: boolean;
-  curl: string;
+  /** Agent-backed providers (claude-code, codex, gemini-sdk) don't use curl */
+  isAgent?: boolean;
+  curl?: string;
 }

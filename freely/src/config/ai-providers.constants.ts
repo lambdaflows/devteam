@@ -131,3 +131,28 @@ export const AI_PROVIDERS = [
     streaming: true,
   },
 ];
+
+/**
+ * Agent-backed providers — these use SDKs / CLIs instead of curl.
+ * IDs must match AGENT_PROVIDER_IDS in src/lib/agents/orchestrator.ts.
+ */
+export const AGENT_PROVIDERS = [
+  {
+    id: "claude-code",
+    isAgent: true,
+    streaming: true,
+    /** No curl — handled by FreelyAgentOrchestrator */
+  },
+  {
+    id: "codex",
+    isAgent: true,
+    streaming: true,
+    /** No curl — handled by FreelyAgentOrchestrator */
+  },
+  {
+    id: "gemini-sdk",
+    isAgent: true,
+    streaming: true,
+    /** No curl — handled by FreelyAgentOrchestrator */
+  },
+];

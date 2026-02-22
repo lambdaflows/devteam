@@ -58,4 +58,6 @@ export type IContextType = {
   setCursorType: (type: CursorType) => void;
   supportsImages: boolean;
   setSupportsImages: (value: boolean) => void;
+  /** Returns true if the given provider ID is agent-backed (not curl-based) */
+  isAgentProvider: (id: string) => boolean;
 };
