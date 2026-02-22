@@ -3,7 +3,8 @@ name: "publish"
 on:
   push:
     branches:
-      - master
+      - main
+    paths: ['freely/**']
 
 jobs:
   publish-tauri:
@@ -23,6 +24,9 @@ jobs:
             args: ""
 
     runs-on: ${{ matrix.platform }}
+    defaults:
+      run:
+        working-directory: freely
     steps:
       - uses: actions/checkout@v4
 
@@ -70,10 +74,11 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         with:
           tagName: app-v__VERSION__
-          releaseName: "Pluely v__VERSION__"
-          releaseBody: "Download binaries for your OS. macOS users: If blocked, go to System Settings > Privacy & Security > Security section, find 'pluely was blocked' message, click 'Allow Anyway', then reopen the app."
+          releaseName: "Freely v__VERSION__"
+          releaseBody: "Download binaries for your OS. macOS users: If blocked, go to System Settings > Privacy & Security > Security section, find 'freely was blocked' message, click 'Allow Anyway', then reopen the app."
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
+          projectPath: freely
