@@ -67,7 +67,7 @@ export const useSettings = () => {
         (p) => p.id === selectedAIProvider.provider
       );
       if (provider) {
-        const variables = extractVariables(provider?.curl);
+        const variables = extractVariables(provider.curl ?? '');
         setVariables(variables);
       }
     }
@@ -79,7 +79,7 @@ export const useSettings = () => {
         (p) => p.id === selectedSttProvider.provider
       );
       if (provider) {
-        const variables = extractVariables(provider?.curl);
+        const variables = extractVariables(provider.curl ?? '');
         setSttVariables(variables);
       }
     }

@@ -121,7 +121,7 @@ export async function* fetchAIResponse(params: {
 
     let curlJson;
     try {
-      curlJson = curl2Json(provider.curl);
+      curlJson = curl2Json(provider.curl ?? '');
     } catch (error) {
       throw new Error(
         `Failed to parse curl: ${
@@ -130,7 +130,7 @@ export async function* fetchAIResponse(params: {
       );
     }
 
-    const extractedVariables = extractVariables(provider.curl);
+    const extractedVariables = extractVariables(provider.curl ?? '');
     const requiredVars = extractedVariables.filter(
       ({ key }) => key !== "SYSTEM_PROMPT" && key !== "TEXT" && key !== "IMAGE"
     );
@@ -148,7 +148,7 @@ export async function* fetchAIResponse(params: {
     if (!userMessage) {
       throw new Error("User message is required");
     }
-    if (imagesBase64.length > 0 && !provider.curl.includes("{{IMAGE}}")) {
+    if (imagesBase64.length > 0 && !provider.curl?.includes("{{IMAGE}}")) {
       throw new Error(
         `Provider ${provider?.id ?? "unknown"} does not support image input`
       );

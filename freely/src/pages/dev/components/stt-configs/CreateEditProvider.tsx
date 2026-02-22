@@ -223,7 +223,7 @@ export const CreateEditProvider = ({
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!formData.curl.trim()}
+              disabled={!formData.curl?.trim()}
               className={cn(
                 "h-11 border-1 border-input/50 focus:border-primary/50 transition-colors",
                 errors.curl && "bg-red-500 hover:bg-red-600 text-white"

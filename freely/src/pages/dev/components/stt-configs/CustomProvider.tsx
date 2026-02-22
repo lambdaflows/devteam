@@ -30,7 +30,7 @@ export const CustomProviders = ({ allSttProviders }: UseSettingsReturn) => {
             {allSttProviders
               .filter((provider) => provider?.isCustom)
               .map((provider) => {
-                const json = curl2Json(provider?.curl);
+                const json = curl2Json(provider?.curl ?? '');
 
                 return (
                   <Card

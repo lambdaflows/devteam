@@ -76,10 +76,10 @@ export function useCustomAiProviders() {
     // Validate form
     const newErrors: { [key: string]: string } = {};
 
-    if (!formData.curl.trim()) {
+    if (!formData.curl?.trim()) {
       newErrors.curl = "Curl command is required";
     } else {
-      const validation = validateCurl(formData.curl, ["TEXT"]);
+      const validation = validateCurl(formData.curl!, ["TEXT"]);
       if (!validation.isValid) {
         newErrors.curl = validation.message || "";
       }

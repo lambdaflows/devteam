@@ -19,7 +19,7 @@ export const Providers = ({
         (p) => p?.id === selectedSttProvider?.provider
       );
       if (provider) {
-        const json = curl2Json(provider?.curl);
+        const json = curl2Json(provider?.curl ?? '');
         setLocalSelectedProvider(json as ResultJSON);
       }
     }
@@ -49,7 +49,7 @@ export const Providers = ({
         <Selection
           selected={selectedSttProvider?.provider}
           options={allSttProviders?.map((provider) => {
-            const json = curl2Json(provider?.curl);
+            const json = curl2Json(provider?.curl ?? '');
             return {
               label: provider?.isCustom
                 ? json?.url || "Custom Provider"

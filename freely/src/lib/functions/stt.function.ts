@@ -32,7 +32,7 @@ export async function fetchSTT(params: STTParams): Promise<string> {
 
     let curlJson: any;
     try {
-      curlJson = curl2Json(provider.curl);
+      curlJson = curl2Json(provider.curl ?? '');
     } catch (error) {
       throw new Error(
         `Failed to parse curl: ${
@@ -66,7 +66,8 @@ export async function fetchSTT(params: STTParams): Promise<string> {
     const formData = deepVariableReplacer(curlJson.form || {}, allVariables);
 
     // To Check if API accepts Binary Data
-    const isBinaryUpload = provider.curl.includes("--data-binary");
+    const curlStr = provider.curl ?? '';
+    const isBinaryUpload = curlStr.includes("--data-binary");
     // Fetch URL Params
     const rawParams = curlJson.params || {};
     // Decode Them
@@ -89,7 +90,7 @@ export async function fetchSTT(params: STTParams): Promise<string> {
     let body: FormData | string | Blob;
 
     const isForm =
-      provider.curl.includes("-F ") || provider.curl.includes("--form");
+      curlStr.includes("-F ") || curlStr.includes("--form");
     if (isForm) {
       const form = new FormData();
       const freshBlob = new Blob([await audio.arrayBuffer()], {
