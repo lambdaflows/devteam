@@ -12,9 +12,55 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Stdio;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+
+// ============================================================================
+// Process registry — tracks live agent child PIDs by session ID
+// ============================================================================
+
+/// Shared state: session_id → child process PID.
+/// Allows the frontend to cancel in-flight agent runs via `kill_agent_process`.
+#[derive(Default, Clone)]
+pub struct AgentProcessRegistry(pub Arc<Mutex<HashMap<String, u32>>>);
+
+/// Kill an in-flight agent process for the given session.
+/// If no process is registered (already finished or never started), this is a no-op.
+#[tauri::command]
+pub async fn kill_agent_process(
+    registry: tauri::State<'_, AgentProcessRegistry>,
+    session_id: String,
+) -> Result<(), String> {
+    let pid = registry
+        .0
+        .lock()
+        .map_err(|e| format!("Registry lock poisoned: {e}"))?
+        .remove(&session_id);
+
+    if let Some(pid) = pid {
+        kill_pid(pid);
+    }
+    Ok(())
+}
+
+/// Send SIGTERM (Unix) or taskkill (Windows) to the given PID.
+#[cfg(unix)]
+fn kill_pid(pid: u32) {
+    // SIGTERM for graceful shutdown; the process group is not targeted since
+    // CLI tools like `claude` may manage their own child processes.
+    let _ = std::process::Command::new("kill")
+        .args(["-TERM", &pid.to_string()])
+        .status();
+}
+
+#[cfg(windows)]
+fn kill_pid(pid: u32) {
+    let _ = std::process::Command::new("taskkill")
+        .args(["/F", "/PID", &pid.to_string()])
+        .status();
+}
 
 // ============================================================================
 // Shared types
@@ -326,6 +372,7 @@ pub async fn load_env_file() -> Result<HashMap<String, String>, String> {
 pub async fn run_claude(
     app: AppHandle,
     payload: AgentPayload,
+    registry: tauri::State<'_, AgentProcessRegistry>,
 ) -> Result<Vec<StreamEvent>, String> {
     let binary = resolve_binary("claude").await?;
 
@@ -360,7 +407,7 @@ pub async fn run_claude(
         .stderr(Stdio::piped())
         .stdin(Stdio::null());
 
-    run_cli_process(app, cmd, &payload.session_id).await
+    run_cli_process(app, cmd, &payload.session_id, &registry).await
 }
 
 // ============================================================================
@@ -371,6 +418,7 @@ pub async fn run_claude(
 pub async fn run_codex(
     app: AppHandle,
     payload: AgentPayload,
+    registry: tauri::State<'_, AgentProcessRegistry>,
 ) -> Result<Vec<StreamEvent>, String> {
     let binary = resolve_binary("codex").await?;
 
@@ -391,7 +439,7 @@ pub async fn run_codex(
         .stderr(Stdio::piped())
         .stdin(Stdio::null());
 
-    run_cli_process(app, cmd, &payload.session_id).await
+    run_cli_process(app, cmd, &payload.session_id, &registry).await
 }
 
 // ============================================================================
@@ -402,6 +450,7 @@ pub async fn run_codex(
 pub async fn run_gemini(
     app: AppHandle,
     payload: AgentPayload,
+    registry: tauri::State<'_, AgentProcessRegistry>,
 ) -> Result<Vec<StreamEvent>, String> {
     let binary = resolve_binary("gemini").await?;
 
@@ -418,7 +467,7 @@ pub async fn run_gemini(
         .stderr(Stdio::piped())
         .stdin(Stdio::null());
 
-    run_cli_process(app, cmd, &payload.session_id).await
+    run_cli_process(app, cmd, &payload.session_id, &registry).await
 }
 
 // ============================================================================
@@ -452,8 +501,16 @@ async fn run_cli_process(
     app: AppHandle,
     mut cmd: Command,
     session_id: &str,
+    registry: &AgentProcessRegistry,
 ) -> Result<Vec<StreamEvent>, String> {
     let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn process: {}", e))?;
+
+    // Register PID so the frontend can cancel via kill_agent_process
+    if let Some(pid) = child.id() {
+        if let Ok(mut map) = registry.0.lock() {
+            map.insert(session_id.to_string(), pid);
+        }
+    }
 
     let stdout = child
         .stdout
@@ -519,6 +576,11 @@ async fn run_cli_process(
         .wait()
         .await
         .map_err(|e| format!("Failed to wait for process: {}", e))?;
+
+    // Deregister PID — process has exited
+    if let Ok(mut map) = registry.0.lock() {
+        map.remove(session_id);
+    }
 
     // Collect stderr
     let stderr_output = stderr_handle

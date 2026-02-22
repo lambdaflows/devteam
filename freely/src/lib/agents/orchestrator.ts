@@ -28,6 +28,28 @@ import {
   toSessionID,
 } from './types.js';
 
+/** Invoke a Tauri command — no-op outside of Tauri context */
+async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T | undefined> {
+  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { invoke } = (window as any).__TAURI_INTERNALS__ as {
+    invoke: (cmd: string, args?: Record<string, unknown>) => Promise<T>;
+  };
+  return invoke(command, args);
+}
+
+/**
+ * Kill the CLI child process for the given session via the Rust registry.
+ * Safe to call even if the session has already ended (no-op on the Rust side).
+ */
+async function killAgentProcess(sessionId: string): Promise<void> {
+  try {
+    await tauriInvoke('kill_agent_process', { session_id: sessionId });
+  } catch {
+    // Best-effort — don't surface errors to the caller
+  }
+}
+
 export const AGENT_PROVIDER_IDS = ['claude-code', 'codex', 'gemini-sdk'] as const;
 export type AgentProviderId = (typeof AGENT_PROVIDER_IDS)[number];
 
@@ -129,6 +151,9 @@ export class FreelyAgentOrchestrator {
     if (params.signal?.aborted) return;
 
     const sessionId = toSessionID(params.sessionId ?? generateId());
+
+    // Kill the Rust child process when the caller aborts
+    params.signal?.addEventListener('abort', () => killAgentProcess(sessionId), { once: true });
     let done = false;
     let errorThrown: Error | null = null;
 
@@ -181,6 +206,9 @@ export class FreelyAgentOrchestrator {
     }
 
     const sessionId = toSessionID(params.sessionId ?? generateId());
+
+    // Kill the Rust child process when the caller aborts
+    params.signal?.addEventListener('abort', () => killAgentProcess(sessionId), { once: true });
     const prompt = this.buildPromptWithHistory(params);
     const queue: string[] = [];
     const waiters: Array<() => void> = [];
@@ -225,6 +253,9 @@ export class FreelyAgentOrchestrator {
 
     // Gemini can operate with OAuth login even without an API key
     const sessionId = toSessionID(params.sessionId ?? generateId());
+
+    // Kill the Rust child process when the caller aborts
+    params.signal?.addEventListener('abort', () => killAgentProcess(sessionId), { once: true });
     const prompt = this.buildPromptWithHistory(params);
     const queue: string[] = [];
     const waiters: Array<() => void> = [];

@@ -42,6 +42,7 @@ pub fn run() {
         )
         .manage(AudioState::default())
         .manage(CaptureState::default())
+        .manage(agents::AgentProcessRegistry::default())
         .manage(shortcuts::WindowVisibility {
             is_hidden: Mutex::new(false),
         })
@@ -121,6 +122,7 @@ pub fn run() {
             agents::run_claude,
             agents::run_codex,
             agents::run_gemini,
+            agents::kill_agent_process,
         ])
         .setup(|app| {
             // Setup main window positioning
