@@ -203,7 +203,7 @@ export class FreelyAgentOrchestrator {
 
     try {
       this.codexTool
-        .executePromptWithStreaming(sessionId, prompt, undefined, undefined, callbacks)
+        .executePromptWithStreaming(sessionId, prompt, undefined, undefined, callbacks, undefined, apiKey)
         .then((result) => {
           if (result.error) finish(new Error(result.error));
           else finish();
@@ -224,6 +224,7 @@ export class FreelyAgentOrchestrator {
     if (params.signal?.aborted) return;
 
     // Gemini can operate with OAuth login even without an API key
+    const apiKey = params.apiKey ?? getProviderVariable('GOOGLE_API_KEY') ?? undefined;
     const sessionId = toSessionID(params.sessionId ?? generateId());
     const prompt = this.buildPromptWithHistory(params);
     const queue: string[] = [];
@@ -247,7 +248,7 @@ export class FreelyAgentOrchestrator {
 
     try {
       this.geminiTool
-        .executePromptWithStreaming(sessionId, prompt, undefined, undefined, callbacks)
+        .executePromptWithStreaming(sessionId, prompt, undefined, undefined, callbacks, undefined, apiKey)
         .then((result) => {
           if (result.error) finish(new Error(result.error));
           else finish();
@@ -307,6 +308,9 @@ function buildStreamingCallbacks(
   };
 }
 
+/** Maximum time to wait for the next chunk before assuming the CLI process has crashed. */
+const DRAIN_TIMEOUT_MS = 30_000;
+
 /** Async generator that yields from a push queue until done */
 async function* drainQueue(
   queue: string[],
@@ -331,8 +335,21 @@ async function* drainQueue(
       return;
     }
 
-    // Wait for next chunk or done signal
-    await new Promise<void>((resolve) => waiters.push(resolve));
+    // Wait for next chunk or done signal, with a timeout to prevent hanging
+    // indefinitely if the CLI process crashes without calling finish().
+    const timedOut = await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(true), DRAIN_TIMEOUT_MS);
+      waiters.push(() => {
+        clearTimeout(timer);
+        resolve(false);
+      });
+    });
+
+    if (timedOut) {
+      throw new Error(
+        `Agent stream timed out after ${DRAIN_TIMEOUT_MS / 1000}s — CLI process may have crashed.`
+      );
+    }
   }
 }
 
