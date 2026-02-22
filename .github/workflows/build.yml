@@ -3,10 +3,14 @@ name: Build
 on:
   push:
     branches: [main]
+    paths: ['freely/**']
 
 jobs:
   build-macos:
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: freely
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +27,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri
+          workspaces: freely/src-tauri
 
       - name: Create dummy environment file
         run: |
@@ -42,4 +46,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: freely-macos-aarch64
-          path: src-tauri/target/aarch64-apple-darwin/release/bundle/
+          path: freely/src-tauri/target/aarch64-apple-darwin/release/bundle/

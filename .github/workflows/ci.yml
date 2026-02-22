@@ -3,12 +3,17 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    paths: ['freely/**']
   push:
     branches: [main]
+    paths: ['freely/**']
 
 jobs:
   frontend:
     runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: freely
     steps:
       - uses: actions/checkout@v4
 
@@ -38,6 +43,9 @@ jobs:
 
   rust:
     runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: freely
     steps:
       - uses: actions/checkout@v4
 
@@ -55,7 +63,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri
+          workspaces: freely/src-tauri
 
       - name: Install system deps
         run: |
