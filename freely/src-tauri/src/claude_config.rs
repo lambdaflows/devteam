@@ -43,6 +43,12 @@ pub fn init_claude_config(app: &AppHandle) -> Result<PathBuf, String> {
         .app_local_data_dir()
         .map_err(|e| format!("Could not resolve app_local_data_dir: {}", e))?;
 
+    init_claude_config_in(data_dir)
+}
+
+/// Core logic for initializing the `.claude` config directory under a given
+/// data directory. Extracted from [`init_claude_config`] for testability.
+pub(crate) fn init_claude_config_in(data_dir: PathBuf) -> Result<PathBuf, String> {
     let claude_dir = data_dir.join(".claude");
 
     std::fs::create_dir_all(&claude_dir)
@@ -96,4 +102,111 @@ pub fn update_claude_md(app: AppHandle, content: String) -> Result<(), String> {
 
     std::fs::write(&claude_md_path, content)
         .map_err(|e| format!("Failed to write CLAUDE.md: {}", e))
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// Helper: run init and return (tmp_dir_guard, claude_dir_path).
+    fn setup() -> (TempDir, PathBuf) {
+        let tmp = TempDir::new().expect("failed to create temp dir");
+        let claude_dir = init_claude_config_in(tmp.path().to_path_buf())
+            .expect("init_claude_config_in failed");
+        (tmp, claude_dir)
+    }
+
+    #[test]
+    fn creates_claude_directory_and_default_files() {
+        let (_tmp, claude_dir) = setup();
+
+        assert!(claude_dir.is_dir(), ".claude directory should exist");
+        assert!(
+            claude_dir.join("CLAUDE.md").is_file(),
+            "CLAUDE.md should be created"
+        );
+        assert!(
+            claude_dir.join("settings.json").is_file(),
+            "settings.json should be created"
+        );
+    }
+
+    #[test]
+    fn default_claude_md_contains_expected_content() {
+        let (_tmp, claude_dir) = setup();
+        let content = std::fs::read_to_string(claude_dir.join("CLAUDE.md")).unwrap();
+        assert!(
+            content.contains("Freely Assistant"),
+            "CLAUDE.md should mention Freely Assistant"
+        );
+    }
+
+    #[test]
+    fn default_settings_json_is_valid_json() {
+        let (_tmp, claude_dir) = setup();
+        let raw = std::fs::read_to_string(claude_dir.join("settings.json")).unwrap();
+        let parsed: serde_json::Value =
+            serde_json::from_str(&raw).expect("settings.json should be valid JSON");
+        assert!(
+            parsed.get("permissions").is_some(),
+            "settings.json should have a permissions key"
+        );
+    }
+
+    #[test]
+    fn idempotent_does_not_overwrite_existing_files() {
+        let tmp = TempDir::new().unwrap();
+        let data_dir = tmp.path().to_path_buf();
+
+        // First init — creates defaults
+        let claude_dir = init_claude_config_in(data_dir.clone()).unwrap();
+
+        // Overwrite CLAUDE.md with custom content
+        let custom = "# Custom config — do not overwrite";
+        std::fs::write(claude_dir.join("CLAUDE.md"), custom).unwrap();
+
+        // Second init — should NOT overwrite
+        let claude_dir2 = init_claude_config_in(data_dir).unwrap();
+        assert_eq!(claude_dir, claude_dir2);
+
+        let content = std::fs::read_to_string(claude_dir.join("CLAUDE.md")).unwrap();
+        assert_eq!(content, custom, "Second init must preserve user edits");
+    }
+
+    #[test]
+    fn returns_correct_claude_dir_path() {
+        let tmp = TempDir::new().unwrap();
+        let data_dir = tmp.path().to_path_buf();
+        let claude_dir = init_claude_config_in(data_dir.clone()).unwrap();
+        assert_eq!(claude_dir, data_dir.join(".claude"));
+    }
+
+    #[test]
+    fn canary_skill_file_persists_across_init() {
+        let tmp = TempDir::new().unwrap();
+        let data_dir = tmp.path().to_path_buf();
+
+        // First init
+        let claude_dir = init_claude_config_in(data_dir.clone()).unwrap();
+
+        // Simulate a user (or the app) adding a custom skill file
+        let commands_dir = claude_dir.join("commands");
+        std::fs::create_dir_all(&commands_dir).unwrap();
+        let canary = commands_dir.join("__test_canary_skill.md");
+        std::fs::write(&canary, "# Canary Skill\nThis is a test skill.").unwrap();
+
+        // Second init — skill file must survive
+        let _ = init_claude_config_in(data_dir).unwrap();
+        assert!(
+            canary.is_file(),
+            "Canary skill file should survive re-init"
+        );
+        let content = std::fs::read_to_string(&canary).unwrap();
+        assert!(content.contains("Canary Skill"));
+    }
 }
