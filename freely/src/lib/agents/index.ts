@@ -54,7 +54,6 @@ export type {
   TaskResult,
   MessageRange,
   FreelyExecutionResult,
-  IMessagesRepository,
   ISessionsRepository,
   TaskStatus,
 } from './types.js';
@@ -71,14 +70,11 @@ export {
 // Storage Adapter
 export {
   createStorageAdapter,
-  LocalStorageMessagesService,
   LocalStorageTasksService,
   LocalStorageSessionsService,
-  LocalStorageMessagesRepository,
   LocalStorageSessionsRepository,
   getProviderVariable,
   setProviderVariable,
-  type MessagesService,
   type TasksService,
   type SessionsService,
   type StoredTask,
