@@ -308,6 +308,9 @@ function buildStreamingCallbacks(
   };
 }
 
+/** Maximum time to wait for the next chunk before assuming the CLI process has crashed. */
+const DRAIN_TIMEOUT_MS = 30_000;
+
 /** Async generator that yields from a push queue until done */
 async function* drainQueue(
   queue: string[],
@@ -332,8 +335,21 @@ async function* drainQueue(
       return;
     }
 
-    // Wait for next chunk or done signal
-    await new Promise<void>((resolve) => waiters.push(resolve));
+    // Wait for next chunk or done signal, with a timeout to prevent hanging
+    // indefinitely if the CLI process crashes without calling finish().
+    const timedOut = await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(true), DRAIN_TIMEOUT_MS);
+      waiters.push(() => {
+        clearTimeout(timer);
+        resolve(false);
+      });
+    });
+
+    if (timedOut) {
+      throw new Error(
+        `Agent stream timed out after ${DRAIN_TIMEOUT_MS / 1000}s — CLI process may have crashed.`
+      );
+    }
   }
 }
 
