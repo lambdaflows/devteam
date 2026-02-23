@@ -1,6 +1,6 @@
 [package]
 name = "freely"
-version = "0.1.9"
+version = "0.1.0"
 description = "A lightning-fast, privacy-first AI assistant that works seamlessly during meetings, interviews, and conversations."
 authors = ["Srikanth Nani <srikanthnani1202@gmail.com>"]
 license = "GPL-3.0"
