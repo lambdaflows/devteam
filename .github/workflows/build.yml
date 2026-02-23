@@ -43,6 +43,7 @@ jobs:
         run: |
           KEY=$(npx tauri signer generate --ci 2>&1 | grep -A1 'Private:' | tail -1)
           echo "TAURI_SIGNING_PRIVATE_KEY=$KEY" >> $GITHUB_ENV
+          echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=" >> $GITHUB_ENV
 
       - name: Build Tauri app
         run: npx tauri build --target aarch64-apple-darwin
