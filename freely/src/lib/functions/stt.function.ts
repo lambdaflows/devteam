@@ -7,8 +7,7 @@ import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 
 import { TYPE_PROVIDER } from "@/types";
 import curl2Json from "@bany/curl-to-json";
-
-export type AudioSource = "mic" | "system_audio";
+import { AudioSource } from "@/types/completion";
 
 export interface STTResult {
   text: string;
@@ -33,27 +32,29 @@ export async function fetchSTT(params: STTParams): Promise<STTResult> {
   const source = params.source ?? "mic";
   let warnings: string[] = [];
 
-  // Local Whisper: bypass HTTP and invoke Tauri command directly
-  if (
-    params.provider?.id === "local-whisper" ||
-    params.selectedProvider?.provider === "local-whisper"
-  ) {
-    const { invoke } = await import("@tauri-apps/api/core");
-    const buffer = await params.audio.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const audioB64 = btoa(binary);
-    const text = await invoke<string>("transcribe_local", { audioB64 });
-    return { text: text.trim(), source, timestamp: Date.now() };
-  }
-
   try {
     const { provider, selectedProvider, audio } = params;
 
     if (!provider) throw new Error("Provider not provided");
     if (!selectedProvider) throw new Error("Selected provider not provided");
     if (!audio) throw new Error("Audio file is required");
+
+    // Local Whisper: bypass HTTP and invoke Tauri command directly
+    if (
+      params.provider?.id === "local-whisper" ||
+      params.selectedProvider?.provider === "local-whisper"
+    ) {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const buffer = await params.audio.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      const chunks: string[] = [];
+      for (let i = 0; i < bytes.length; i += 8192) {
+        chunks.push(String.fromCharCode(...bytes.subarray(i, i + 8192)));
+      }
+      const audioB64 = btoa(chunks.join(""));
+      const text = await invoke<string>("transcribe_local", { audioB64 });
+      return { text: text.trim(), source, timestamp: Date.now() };
+    }
 
     let curlJson: any;
     try {
